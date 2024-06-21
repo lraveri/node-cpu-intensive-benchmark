@@ -1,0 +1,55 @@
+const fastify = require('fastify')();
+const { Worker, isMainThread, parentPort } = require('worker_threads');
+const path = require('path');
+const os = require('os');
+const hash = require('../hash');
+
+const numCPUs = os.cpus().length;
+
+if (isMainThread) {
+    const workerPool = [];
+    const requestQueue = [];
+
+    for (let i = 0; i < numCPUs; i++) {
+        workerPool.push(new Worker(path.resolve(__dirname, 'server.js')));
+    }
+
+    const processQueue = () => {
+        if (requestQueue.length === 0) return;
+
+        const wk = workerPool.pop();
+        if (!wk) return;
+
+        const { request, reply } = requestQueue.shift();
+        const listener = (result) => {
+            wk.off('message', listener);
+            workerPool.push(wk);
+            reply.send({ result });
+            processQueue();
+        };
+        wk.on('message', listener);
+        wk.postMessage({});
+    };
+
+    fastify.get('/hash', (request, reply) => {
+        requestQueue.push({ request, reply });
+        processQueue();
+    });
+
+    fastify.get('/health', (request, reply) => {
+        reply.send({ data: 'Server is healthy' });
+    });
+
+    fastify.listen({ port: 3000 }, (err, address) => {
+        if (err) {
+            fastify.log.error(err);
+            process.exit(1);
+        }
+        console.log(`Server listening at ${address}`);
+    });
+} else {
+    parentPort.on('message', () => {
+        const result = hash();
+        parentPort.postMessage(result);
+    });
+}

@@ -1,9 +1,8 @@
 const fastify = require('fastify')();
 const hash = require('../hash');
 
-fastify.get('/hash/:number', async (request, reply) => {
-    const number = parseInt(request.params.number, 10);
-    const result = hash('random_password', number);
+fastify.get('/hash', async (request, reply) => {
+    const result = hash();
     return { result };
 });
 

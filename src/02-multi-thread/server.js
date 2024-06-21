@@ -4,27 +4,20 @@ const path = require('path');
 const hash = require('../hash');
 
 if (isMainThread) {
-    fastify.get('/hash/:number', (request, reply) => {
-        const number = parseInt(request.params.number, 10);
-        //console.log(`[Main Thread] Received request for Fibonacci of ${number}`);
+    fastify.get('/hash', (request, reply) => {
 
-        const worker = new Worker(path.resolve(__dirname, 'server.js'), {
-            workerData: {number: number}
-        });
+        const worker = new Worker(path.resolve(__dirname, 'server.js'));
 
         worker.on('message', (result) => {
-            //console.log(`[Main Thread] Responding with result: ${result}`);
             reply.send({result});
         });
 
         worker.on('error', (error) => {
-            //console.error(`[Main Thread] Worker error: ${error}`);
             reply.status(500).send({error: 'Worker error'});
         });
 
         worker.on('exit', (code) => {
             if (code !== 0) {
-                //console.error(`[Main Thread] Worker stopped with exit code ${code}`);
                 reply.status(500).send({error: 'Worker stopped with exit code ' + code});
             }
         });
@@ -42,6 +35,6 @@ if (isMainThread) {
         console.log(`Server listening at ${address}`);
     });
 } else {
-    const result = hash('random_password', workerData.number);
+    const result = hash();
     parentPort.postMessage(result);
 }

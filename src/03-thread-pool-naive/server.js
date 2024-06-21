@@ -11,22 +11,17 @@ if (isMainThread) {
     for (let i = 0; i < numCPUs; i++) {
         workerPool.push(new Worker(path.resolve(__dirname, 'server.js')));
     }
-    //console.log(`Created ${workerPool.length} worker threads`);
 
-    fastify.get('/hash/:number', (request, reply) => {
-        const number = parseInt(request.params.number, 10);
-        //console.log(`[Main Thread] Received request for Fibonacci of ${number}`);
-
+    fastify.get('/hash', (request, reply) => {
         const wk = workerPool.pop();
         if (wk) {
             const listener = (result) => {
                 wk.off('message', listener);
                 workerPool.push(wk);
-                //console.log(`[Main Thread] Responding with result: ${result}`);
                 reply.send({ result });
             };
             wk.on('message', listener);
-            wk.postMessage(number);
+            wk.postMessage({});
         } else {
             reply.status(503).send({ error: 'No available worker threads' });
         }
@@ -44,8 +39,8 @@ if (isMainThread) {
         console.log(`Server listening at ${address}`);
     });
 } else {
-    parentPort.on('message', (number) => {
-        const result = hash('random_password', number);
+    parentPort.on('message', () => {
+        const result = hash();
         parentPort.postMessage(result);
     });
 }
